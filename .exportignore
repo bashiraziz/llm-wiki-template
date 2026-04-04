@@ -1,0 +1,27 @@
+# .exportignore — LLM Wiki Template
+# ====================================
+# Patterns matched against export filenames.
+# Files matching these patterns are excluded from the SQLite FTS5 index.
+# They remain on disk as backup but are NEVER searchable.
+#
+# Format: one glob pattern per line (matched against filename only, not path).
+# Blank lines and lines starting with # are ignored.
+#
+# Add patterns for any sessions you want to archive but not index.
+# Use --label to name sessions at export time:
+#   python3 scripts/export-session.py --trigger manual --label client
+# This produces: YYYY-MM-DD_HHMMSS_sessionid_manual_client.md
+# Which matches: *_client_*.md
+
+# ── Confidential (GPG-encrypted, never plaintext in index) ───────────────────
+*_confidential_*.md
+
+# ── Common sensitive categories (uncomment what applies to you) ───────────────
+# *_client_*.md
+# *_nda_*.md
+# *_legal_*.md
+# *_medical_*.md
+# *_personal_*.md
+# *_financial_*.md
+# *_jobsearch_*.md
+# *_interview_*.md

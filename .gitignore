@@ -1,0 +1,31 @@
+# LLM Wiki Template — .gitignore
+
+# ── Session exports — local only, never commit raw transcripts ────────────────
+sessions/exports/*
+sessions/confidential/*
+sessions/wiki-digests/*
+!sessions/exports/.gitkeep
+!sessions/confidential/.gitkeep
+!sessions/wiki-digests/.gitkeep
+!raw/.gitkeep
+
+# ── SQLite index — regenerable from exports, no need to version ───────────────
+sessions.db
+sessions.db-shm
+sessions.db-wal
+
+# ── Confidentiality sentinel — transient, never commit ────────────────────────
+.claude/no-export
+
+# ── OS and editor noise ───────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# ── Raw sources (uncomment if your raw/ contains sensitive documents) ─────────
+# raw/

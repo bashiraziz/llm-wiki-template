@@ -1,0 +1,45 @@
+{
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/scripts/export-session.py --trigger precompact"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/scripts/export-session.py --trigger sessionend"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/scripts/index-sessions.sh && echo '---' && bash .claude/scripts/recall.sh --recent 3"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import json,sys,pathlib; d=json.load(sys.stdin); pathlib.Path('.claude/no-export').touch() if 'confidential' in d.get('prompt','').lower() else None\""
+          }
+        ]
+      }
+    ]
+  }
+}
