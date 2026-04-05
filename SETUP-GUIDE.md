@@ -13,7 +13,7 @@ Install these before starting:
 | Claude Code | `npm install -g @anthropic-ai/claude-code` | LLM agent (reference implementation) |
 | Git | pre-installed Mac/Linux · git-scm.com Windows | Version control + multi-device sync |
 | Python 3 | pre-installed Mac/Linux · python.org Windows | Session export script |
-| SQLite 3 | `brew install sqlite3` Mac · pre-installed Linux | Session search index |
+| SQLite 3 | `brew install sqlite3` Mac · pre-installed Linux · see Windows note below | Session search index |
 | GPG | `brew install gnupg` Mac · `apt install gnupg` Linux | Encrypted confidential sessions (optional) |
 | Obsidian | obsidian.md | Reading and navigating the wiki |
 | Obsidian Web Clipper | obsidian.md/clipper (browser extension) | Clipping web articles to raw/ |
@@ -22,10 +22,16 @@ Verify installs:
 ```bash
 claude --version
 git --version
-python3 --version
+python3 --version    # Mac/Linux
+python --version     # Windows (use whichever works)
 sqlite3 --version
-gpg --version      # optional
+gpg --version        # optional
 ```
+
+**Windows — SQLite not pre-installed:**
+Download `sqlite-tools-win-x64-*.zip` from sqlite.org/download.html, extract
+`sqlite3.exe`, and copy it to `C:\Windows\System32\` (requires admin).
+See [docs/windows-setup.md](docs/windows-setup.md) for more details.
 
 ---
 
@@ -79,7 +85,7 @@ Create a **private** repository on GitHub (github.com → New → Private).
 Do not initialize it with a README. Then:
 
 ```bash
-git remote set-url origin git@github.com:bashiraziz/my-wiki.git
+git remote set-url origin git@github.com:YourName/my-wiki.git
 git add wiki/ CLAUDE.md .gitignore .exportignore .claude/
 git commit -m "init: wiki structure and schema"
 git push -u origin main
@@ -208,7 +214,7 @@ Settings → Community plugins → Browse:
 ### Step 3.1 — Clone on each additional machine
 
 ```bash
-git clone git@github.com:bashiraziz/my-wiki.git ~/my-wiki
+git clone git@github.com:YourName/my-wiki.git ~/my-wiki
 cd ~/my-wiki
 chmod +x .claude/scripts/*.sh .claude/scripts/*.py
 bash .claude/scripts/index-sessions.sh
@@ -320,13 +326,20 @@ claude
 ```
 Nothing from that session touches disk. Sentinel auto-deletes.
 
-### Ending a session
+### Ending a session (Mac / Linux)
 ```bash
 # SessionEnd hook fires automatically → exports if PreCompact didn't
 git add wiki/
 git commit -m "session: [topic]"
 git push
 ```
+
+### Ending a session (Windows)
+```
+exit        ← close Claude Code
+wikiexit    ← export session to wiki (see Part 5)
+```
+Then commit as normal.
 
 ### Weekly maintenance
 ```bash
@@ -341,7 +354,72 @@ git push
 
 ---
 
-## Part 5 — Confidentiality
+## Part 5 — Closing sessions correctly
+
+How you close a Claude Code session determines whether it gets exported.
+
+### Mac / Linux
+
+The SessionEnd hook fires reliably on `exit`. Your closing ritual:
+```bash
+exit        # closes Claude Code, triggers export automatically
+```
+
+### Windows
+
+The SessionEnd hook does not always fire on Windows. Use the
+`wikiexit` PowerShell alias instead.
+
+**One-time setup:**
+```powershell
+notepad $PROFILE
+```
+Add this to the file:
+```powershell
+function wikiexit {
+    python "YOUR_WIKI_PATH\.claude\scripts\export-session.py" `
+           --trigger manual `
+           --wiki-dir "YOUR_WIKI_PATH"
+}
+```
+Replace `YOUR_WIKI_PATH` with your actual wiki path. Save, close Notepad, then run:
+```powershell
+. $PROFILE
+```
+
+**Every session closing ritual (Windows):**
+```
+exit        ← closes Claude Code, back to PowerShell
+wikiexit    ← exports session to wiki
+```
+
+`wikiexit` is a PowerShell function that:
+- Works from any project directory
+- Auto-detects the latest session transcript
+- Exports with the project name in the filename
+- Routes to your central wiki regardless of which project you're in
+
+### Verifying export worked
+
+After `wikiexit` (or on Mac/Linux after `exit`), check:
+```bash
+# Mac/Linux:
+ls sessions/exports/
+
+# Windows:
+dir YOUR_WIKI_PATH\sessions\exports\
+```
+
+You should see a new file named:
+```
+YYYY-MM-DD_HHMMSS_sessionid_projectname_manual.md
+```
+
+The project name in the filename confirms which project it came from.
+
+---
+
+## Part 6 — Confidentiality
 
 | Situation | What to do |
 |---|---|
@@ -352,9 +430,71 @@ git push
 | Archive encrypted, not plaintext | `export-session.py --label confidential` |
 | Routine work | Default — export and index normally |
 
+**Sentinel on Windows (PowerShell):**
+```powershell
+echo $null > .claude\no-export
+# or say "This session is confidential" at the first prompt
+```
+
 ---
 
-## Part 6 — Troubleshooting
+## Part 7 — Multi-project wiring
+
+Wire all your existing project repos to the central wiki so every
+session from every project exports to one searchable index.
+
+### Wire a single project
+
+```bash
+# Mac/Linux:
+python /path/to/wiki/scripts/wire-project.py /path/to/project
+
+# Windows:
+python C:\path\to\wiki\scripts\wire-project.py C:\path\to\project
+
+# Current directory:
+python C:\path\to\wiki\scripts\wire-project.py .
+```
+
+### Wire all existing projects at once
+
+```bash
+python /path/to/wiki/scripts/wire-all-projects.py
+```
+
+Shows you the list of repos it found before making any changes.
+Skips `llm-wiki-template` and the wiki itself.
+
+### Wire new projects (every time)
+
+Make this a habit for every new repo you create:
+```bash
+# After git init:
+python /path/to/wiki/scripts/wire-project.py .
+```
+
+See [examples/use-cases/new-project-checklist.md](examples/use-cases/new-project-checklist.md)
+for the full new project setup sequence.
+
+### After wiring — commit in each project
+
+```bash
+cd /path/to/project
+git add .claude/settings.json CLAUDE.md
+git commit -m "wire: connect to central wiki session export"
+git push
+```
+
+### Verifying a project is wired correctly
+
+```bash
+cat .claude/settings.json | grep "export-session"
+# Should show the absolute path to your wiki's export-session.py
+```
+
+---
+
+## Part 8 — Troubleshooting
 
 **Hooks not firing**
 
@@ -363,7 +503,7 @@ Verify `settings.json` is valid JSON:
 python3 -c "import json; json.load(open('.claude/settings.json'))" && echo "valid"
 ```
 
-Check scripts are executable:
+Check scripts are executable (Mac/Linux):
 ```bash
 ls -la .claude/scripts/
 # Should show -rwxr-xr-x for each file
@@ -419,9 +559,21 @@ This is normal for short sessions that never fill the context window.
 `SessionEnd` is the fallback for exactly this case. Both hooks produce
 identical output — the deduplication logic prevents double-export.
 
+**Windows: emoji shows as `?` in terminal**
+
+Cosmetic only. Exports work correctly. The scripts use `safe_print()` internally.
+
+**Windows: `wikiexit` says "No transcript found"**
+
+Check that `~\.claude\projects\` exists and contains session files:
+```powershell
+dir $HOME\.claude\projects\
+```
+If empty, run at least one Claude Code session first.
+
 ---
 
-## Part 7 — What commits vs. what stays local
+## What commits vs. what stays local
 
 | Path | Committed | Reason |
 |---|---|---|
@@ -451,11 +603,18 @@ FIRST TIME:
 EACH NEW DEVICE:
   git clone → chmod +x scripts → bash index-sessions.sh → Obsidian
 
-EVERY SESSION:
-  git pull → claude → [work] → git add wiki/ → git commit → git push
+EVERY SESSION (Mac/Linux):
+  git pull → claude → [work] → exit → git add wiki/ → git commit → git push
+
+EVERY SESSION (Windows):
+  git pull → claude → [work] → exit → wikiexit → git add wiki/ → git commit → git push
 
 CONFIDENTIAL SESSION:
   touch .claude/no-export → claude → [nothing recorded]
+  Windows: echo $null > .claude\no-export
+
+WIRE A NEW PROJECT:
+  python /path/to/wiki/scripts/wire-project.py /path/to/project
 
 WEEKLY:
   claude → digest sessions → lint → git commit → git push

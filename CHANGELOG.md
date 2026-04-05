@@ -7,6 +7,39 @@ Each release notes what was added, changed, fixed, or removed.
 
 ---
 
+## [1.1.1] — 2026-04-05
+
+### Fixed
+
+**Critical bug fixes found during Windows testing**
+
+- `export-session.py` — Parse new Claude Code 2.x JSONL message format
+  (`{"type": "user", "message": {...}}` wrapper). Old format still supported.
+- `export-session.py` — Always route exports to central wiki (WIKI_ROOT)
+  regardless of which project directory Claude Code is running from.
+  Previously wrote to cwd, scattering exports across project directories.
+- `export-session.py` — Include project name in export filename.
+  New format: `YYYY-MM-DD_HHMMSS_<sessionid>_<project>_<trigger>.md`
+- `adapters/claude-code/.claude/settings.json` — Tighten UserPromptSubmit
+  sentinel trigger from bare word `"confidential"` to exact phrase
+  `"this session is confidential"`. The bare word match silently blocked
+  ALL exports in domains where "confidential" appears in normal work
+  content (DCAA compliance, legal, medical, HR, etc.).
+- `scripts/wire-project.py` — Same sentinel trigger fix applied to
+  template for future projects.
+- `export-session.py` — Windows console encoding: use safe_print()
+  to avoid cp1252 emoji encoding errors.
+
+### Added
+
+- Setup Guide Part 5: Windows session closing with `wikiexit` alias
+- README: Windows callout and Known Issues table
+- `docs/windows-setup.md`: Dedicated Windows setup guide
+- `.exportignore`: Better commented template with domain-specific examples
+- Warning in CLAUDE.md about UserPromptSubmit trigger customization
+
+---
+
 ## [1.1.0] — 2026-04-04
 
 ### Added

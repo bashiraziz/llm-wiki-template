@@ -42,7 +42,7 @@ from datetime import datetime
 # Exports always land in the central wiki, not in whichever project cwd triggered
 # the hook. Priority: --wiki-dir flag → WIKI_ROOT env var → hardcoded path → cwd.
 
-_WIKI_ROOT_HARDCODED = Path(r"C:\Users\user\Documents\GitHub\my-wiki")
+_WIKI_ROOT_HARDCODED = None  # Set to your wiki path, or use WIKI_ROOT env var
 
 
 def resolve_wiki_root(cwd: Path, cli_override: str = "") -> Path:
@@ -52,8 +52,8 @@ def resolve_wiki_root(cwd: Path, cli_override: str = "") -> Path:
     env_root = os.environ.get("WIKI_ROOT", "")
     if env_root:
         return Path(env_root).resolve()
-    if _WIKI_ROOT_HARDCODED.exists():
-        return _WIKI_ROOT_HARDCODED
+    if _WIKI_ROOT_HARDCODED and Path(_WIKI_ROOT_HARDCODED).exists():
+        return Path(_WIKI_ROOT_HARDCODED)
     return cwd
 
 

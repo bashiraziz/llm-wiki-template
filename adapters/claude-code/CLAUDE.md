@@ -113,6 +113,40 @@ Catches short sessions that never triggered PreCompact.
 **SessionStart** — fires when a new session begins.
 Indexes any unindexed exports, prints last 3 sessions so you know where you left off.
 
+### Windows note — wikiexit alias
+
+On Windows, the SessionEnd hook may not fire reliably when you type
+`exit` to close Claude Code. Add this function to your PowerShell
+profile as a reliable alternative:
+
+```powershell
+# Run once in PowerShell to open your profile:
+notepad $PROFILE
+
+# Add this function to the file, save, and close:
+function wikiexit {
+    python "YOUR_WIKI_PATH\.claude\scripts\export-session.py" `
+           --trigger manual `
+           --wiki-dir "YOUR_WIKI_PATH"
+}
+
+# Reload the profile in the current terminal:
+. $PROFILE
+```
+
+Replace `YOUR_WIKI_PATH` with your actual wiki path.
+
+After setup, your session closing ritual is:
+```
+exit        ← close Claude Code
+wikiexit    ← export the session to your wiki
+```
+
+`wikiexit` works from any project directory. It detects the current
+project and exports the latest session transcript automatically.
+
+---
+
 ### Confidentiality controls
 
 **Control 1 — Sentinel file** (skip export entirely):
@@ -121,6 +155,12 @@ touch .claude/no-export   # before starting a sensitive session
 # or say "This session is confidential" at the first prompt
 ```
 The sentinel auto-deletes after the session so the next session exports normally.
+
+> **Important**: Do NOT customize the UserPromptSubmit trigger to a single
+> common word like "confidential", "private", or "secret". These words appear
+> naturally in work content and will silently block ALL session exports. Use
+> the exact phrase `"this session is confidential"` or another unambiguous
+> deliberate phrase.
 
 **Control 2 — .exportignore** (export to disk but exclude from search index):
 Add filename patterns to `.exportignore`. Files exist as backup but are never searchable.
@@ -172,7 +212,7 @@ python3 .claude/scripts/export-session.py --trigger manual --label confidential
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"import json,sys,pathlib; d=json.load(sys.stdin); pathlib.Path('.claude/no-export').touch() if 'confidential' in d.get('prompt','').lower() else None\""
+            "command": "python3 -c \"import json,sys,pathlib; d=json.load(sys.stdin); pathlib.Path('.claude/no-export').touch() if 'this session is confidential' in d.get('prompt','').lower() else None\""
           }
         ]
       }

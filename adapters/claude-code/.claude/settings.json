@@ -36,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"import json,sys,pathlib; d=json.load(sys.stdin); pathlib.Path('.claude/no-export').touch() if 'confidential' in d.get('prompt','').lower() else None\""
+            "command": "python3 -c \"import json,sys,pathlib; d=json.load(sys.stdin); pathlib.Path('.claude/no-export').touch() if 'this session is confidential' in d.get('prompt','').lower() else None\""
           }
         ]
       }

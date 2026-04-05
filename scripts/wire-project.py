@@ -137,7 +137,7 @@ def build_settings(wiki_scripts: Path) -> dict:
                                 f"python -c \"import json,sys,pathlib; "
                                 f"d=json.load(sys.stdin); "
                                 f"pathlib.Path('{sentinel_path}').touch() "
-                                f"if 'confidential' in d.get('prompt','').lower() else None\""
+                                f"if 'this session is confidential' in d.get('prompt','').lower() else None\""
                             )
                         }
                     ]

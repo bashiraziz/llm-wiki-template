@@ -63,6 +63,10 @@ Three layers:
 
 Claude Code gets the best experience because it's currently the only tool with a native hook system that makes session export fully automatic. With other tools you get ~80% of the value — the wiki compounding, full-text search, Obsidian interface — but session capture requires a manual step.
 
+> **Windows users**: The SessionEnd hook may not fire reliably on exit.
+> See [Part 5 of the Setup Guide](SETUP-GUIDE.md#part-5--closing-sessions-correctly) for the `wikiexit` PowerShell alias that solves this.
+> Full Windows-specific notes in [docs/windows-setup.md](docs/windows-setup.md).
+
 ---
 
 ## Quickstart (Claude Code)
@@ -234,6 +238,16 @@ touch .claude/no-export
 # Layer 3 — Encrypt confidential archive (GPG):
 # export-session.py --label confidential  →  GPG-encrypted to sessions/confidential/
 ```
+
+---
+
+## Known issues and workarounds
+
+| Issue | Affects | Workaround |
+|---|---|---|
+| SessionEnd hook doesn't fire on exit | Windows | Use `wikiexit` PowerShell alias — see [Setup Guide Part 5](SETUP-GUIDE.md#part-5--closing-sessions-correctly) |
+| Emoji display as `?` in terminal output | Windows cp1252 | Cosmetic only — exports still work correctly |
+| sqlite3 not found in Git Bash | Windows | Copy sqlite3.exe to `C:\Program Files\Git\usr\bin\` as admin |
 
 ---
 
