@@ -30,12 +30,60 @@ Requirements:
 """
 
 import json
+import os
 import sys
 import argparse
 import shutil
 import subprocess
 from pathlib import Path
 from datetime import datetime
+
+
+# ── Wiki root resolution ───────────────────────────────────────────────────────
+# Set WIKI_ROOT to route exports to a central wiki regardless of which project
+# directory Claude Code is running from.
+#
+#   export WIKI_ROOT=/path/to/your/wiki       # shell / .bashrc / .zshrc
+#   set WIKI_ROOT=C:\path\to\your\wiki        # Windows cmd
+#   $env:WIKI_ROOT = "C:\path\to\your\wiki"   # PowerShell
+#
+# If WIKI_ROOT is not set, the script walks up from cwd looking for a directory
+# that already has a sessions/ subdirectory (i.e., an existing wiki root).
+# If nothing is found, it falls back to cwd.
+
+
+def resolve_wiki_root(cwd: Path, cli_override: str = "") -> Path:
+    """
+    Return the wiki root where session exports should be written.
+
+    Priority:
+    1. --wiki-dir CLI argument (explicit override)
+    2. WIKI_ROOT environment variable
+    3. Walk up from cwd — first ancestor that contains a sessions/ directory
+    4. cwd (fallback: treat the current project as the wiki root)
+    """
+    if cli_override:
+        return Path(cli_override).resolve()
+
+    env_root = os.environ.get("WIKI_ROOT", "")
+    if env_root:
+        p = Path(env_root).resolve()
+        if p.exists():
+            return p
+        print(f"⚠️  WIKI_ROOT={env_root!r} does not exist — falling back to auto-detection.",
+              file=sys.stderr)
+
+    # Walk up looking for an existing sessions/ directory
+    candidate = cwd
+    for _ in range(8):
+        if (candidate / "sessions").is_dir():
+            return candidate
+        parent = candidate.parent
+        if parent == candidate:
+            break
+        candidate = parent
+
+    return cwd
 
 
 # ── Markdown conversion ────────────────────────────────────────────────────────
@@ -199,6 +247,11 @@ def main():
         default="",
         help="Explicit path to JSONL transcript file (overrides auto-detection)"
     )
+    parser.add_argument(
+        "--wiki-dir",
+        default="",
+        help="Explicit wiki root for session output (overrides WIKI_ROOT env var and auto-detection)"
+    )
     args = parser.parse_args()
 
     # ── Read hook payload from stdin (Claude Code hook mode) ──────────────────
@@ -212,14 +265,18 @@ def main():
     session_id = hook_data.get("session_id", "unknown")
     transcript_path_str = args.transcript or hook_data.get("transcript_path", "")
     cwd = Path(hook_data.get("cwd", ".")).resolve()
+    # wiki_dir is where sessions are written — resolved independently of hook cwd
+    # so exports always land in the central wiki, not the triggering project dir.
+    wiki_dir = resolve_wiki_root(cwd, args.wiki_dir)
 
     # ── Control 1: Sentinel file check ────────────────────────────────────────
-    sentinel = cwd / ".claude" / "no-export"
-    if sentinel.exists():
-        sentinel.unlink()
-        print("🔒 Export skipped — confidential sentinel was active. Sentinel removed.",
-              file=sys.stderr)
-        sys.exit(0)
+    # Check sentinel in both the triggering project and the wiki root.
+    for sentinel in {cwd / ".claude" / "no-export", wiki_dir / ".claude" / "no-export"}:
+        if sentinel.exists():
+            sentinel.unlink()
+            print("🔒 Export skipped — confidential sentinel was active. Sentinel removed.",
+                  file=sys.stderr)
+            sys.exit(0)
 
     # ── Find transcript (manual mode fallback) ────────────────────────────────
     if not transcript_path_str:
@@ -239,9 +296,9 @@ def main():
 
     # ── Route to correct output directory ─────────────────────────────────────
     if is_confidential:
-        export_dir = cwd / "sessions" / "confidential"
+        export_dir = wiki_dir / "sessions" / "confidential"
     else:
-        export_dir = cwd / "sessions" / "exports"
+        export_dir = wiki_dir / "sessions" / "exports"
     export_dir.mkdir(parents=True, exist_ok=True)
 
     # ── Deduplication: skip SessionEnd if PreCompact already ran ──────────────
