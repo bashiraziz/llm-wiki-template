@@ -21,8 +21,8 @@ Usage:
   python3 export-session.py --trigger manual --transcript /path/to/session.jsonl
 
 Output:
-  sessions/exports/YYYY-MM-DD_HHMMSS_<session_id>_<trigger>.md
-  sessions/confidential/YYYY-MM-DD_HHMMSS_<session_id>_confidential.md.gpg  (if confidential)
+  sessions/exports/YYYY-MM-DD_HHMMSS_<session_id>_<project>_<trigger>.md
+  sessions/confidential/YYYY-MM-DD_HHMMSS_<session_id>_<project>_confidential.md.gpg  (if confidential)
 
 Requirements:
   Python 3.6+
@@ -38,63 +38,38 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 
-
 # ── Wiki root resolution ───────────────────────────────────────────────────────
-# Set WIKI_ROOT to route exports to a central wiki regardless of which project
-# directory Claude Code is running from.
-#
-#   export WIKI_ROOT=/path/to/your/wiki       # shell / .bashrc / .zshrc
-#   set WIKI_ROOT=C:\path\to\your\wiki        # Windows cmd
-#   $env:WIKI_ROOT = "C:\path\to\your\wiki"   # PowerShell
-#
-# If WIKI_ROOT is not set, the script walks up from cwd looking for a directory
-# that already has a sessions/ subdirectory (i.e., an existing wiki root).
-# If nothing is found, it falls back to cwd.
+# Exports always land in the central wiki, not in whichever project cwd triggered
+# the hook. Priority: --wiki-dir flag → WIKI_ROOT env var → hardcoded path → cwd.
+
+_WIKI_ROOT_HARDCODED = Path(r"C:\Users\user\Documents\GitHub\my-wiki")
 
 
 def resolve_wiki_root(cwd: Path, cli_override: str = "") -> Path:
-    """
-    Return the wiki root where session exports should be written.
-
-    Priority:
-    1. --wiki-dir CLI argument (explicit override)
-    2. WIKI_ROOT environment variable
-    3. Walk up from cwd — first ancestor that contains a sessions/ directory
-    4. cwd (fallback: treat the current project as the wiki root)
-    """
+    """Return the canonical wiki root for session export output."""
     if cli_override:
         return Path(cli_override).resolve()
-
     env_root = os.environ.get("WIKI_ROOT", "")
     if env_root:
-        p = Path(env_root).resolve()
-        if p.exists():
-            return p
-        print(f"⚠️  WIKI_ROOT={env_root!r} does not exist — falling back to auto-detection.",
-              file=sys.stderr)
-
-    # Walk up looking for an existing sessions/ directory
-    candidate = cwd
-    for _ in range(8):
-        if (candidate / "sessions").is_dir():
-            return candidate
-        parent = candidate.parent
-        if parent == candidate:
-            break
-        candidate = parent
-
+        return Path(env_root).resolve()
+    if _WIKI_ROOT_HARDCODED.exists():
+        return _WIKI_ROOT_HARDCODED
     return cwd
 
 
 # ── Markdown conversion ────────────────────────────────────────────────────────
 
-def parse_jsonl_to_markdown(jsonl_path: Path, session_id: str, trigger: str) -> str:
+def parse_jsonl_to_markdown(jsonl_path: Path, session_id: str, trigger: str, project_name: str = "", project_path: str = "") -> str:
     """Convert a Claude Code JSONL transcript to readable markdown."""
     lines = []
     lines.append("# Session Export")
     lines.append(f"- **Session ID**: `{session_id}`")
     lines.append(f"- **Exported**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append(f"- **Trigger**: {trigger}")
+    if project_name:
+        lines.append(f"- **Project**: {project_name}")
+    if project_path:
+        lines.append(f"- **Project Path**: `{project_path}`")
     lines.append(f"- **Source**: {jsonl_path}")
     lines.append("")
     lines.append("---")
@@ -111,8 +86,19 @@ def parse_jsonl_to_markdown(jsonl_path: Path, session_id: str, trigger: str) -> 
                 except json.JSONDecodeError:
                     continue
 
-                role = entry.get("role", "")
-                content = entry.get("content", "")
+                # Support both formats:
+                # New (Claude Code 2.x): {"type":"user","message":{"role":"user","content":...}}
+                # Old: {"role":"human","content":...}
+                message = entry.get("message", {})
+                if message:
+                    role = message.get("role", "")
+                    content = message.get("content", "")
+                else:
+                    role = entry.get("role", "")
+                    content = entry.get("content", "")
+                # Normalize role names
+                if role == "user":
+                    role = "human"
 
                 if role == "human":
                     if isinstance(content, list):
@@ -250,7 +236,7 @@ def main():
     parser.add_argument(
         "--wiki-dir",
         default="",
-        help="Explicit wiki root for session output (overrides WIKI_ROOT env var and auto-detection)"
+        help="Explicit path to wiki root for session output (overrides cwd from hook payload)"
     )
     args = parser.parse_args()
 
@@ -265,15 +251,18 @@ def main():
     session_id = hook_data.get("session_id", "unknown")
     transcript_path_str = args.transcript or hook_data.get("transcript_path", "")
     cwd = Path(hook_data.get("cwd", ".")).resolve()
-    # wiki_dir is where sessions are written — resolved independently of hook cwd
-    # so exports always land in the central wiki, not the triggering project dir.
+    # wiki_dir is where sessions are written — always resolves to the central wiki,
+    # never the project cwd that triggered the hook.
     wiki_dir = resolve_wiki_root(cwd, args.wiki_dir)
 
     # ── Control 1: Sentinel file check ────────────────────────────────────────
-    # Check sentinel in both the triggering project and the wiki root.
-    for sentinel in {cwd / ".claude" / "no-export", wiki_dir / ".claude" / "no-export"}:
-        if sentinel.exists():
-            sentinel.unlink()
+    # Check both the project cwd (where the user may have placed the sentinel)
+    # and the wiki dir (canonical location).
+    sentinel = cwd / ".claude" / "no-export"
+    wiki_sentinel = wiki_dir / ".claude" / "no-export"
+    for s in {sentinel, wiki_sentinel}:
+        if s.exists():
+            s.unlink()
             print("🔒 Export skipped — confidential sentinel was active. Sentinel removed.",
                   file=sys.stderr)
             sys.exit(0)
@@ -301,9 +290,14 @@ def main():
         export_dir = wiki_dir / "sessions" / "exports"
     export_dir.mkdir(parents=True, exist_ok=True)
 
+    # ── Sanitize project name for use in filename ─────────────────────────────
+    project_slug = cwd.name.lower()
+    project_slug = "".join(c if c.isalnum() or c == "-" else "-" for c in project_slug)
+    project_slug = project_slug.strip("-")
+
     # ── Deduplication: skip SessionEnd if PreCompact already ran ──────────────
     if args.trigger == "sessionend" and not is_confidential:
-        existing = list(export_dir.glob(f"*_{short_id}_precompact*.md"))
+        existing = list(export_dir.glob(f"*_{short_id}_*_precompact*.md"))
         if existing:
             print(f"Session {short_id} already captured by PreCompact — skipping SessionEnd.",
                   file=sys.stderr)
@@ -312,22 +306,33 @@ def main():
     # ── Build output filename ──────────────────────────────────────────────────
     timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     label_suffix = f"_{args.label}" if args.label else ""
-    export_filename = f"{timestamp}_{short_id}_{args.trigger}{label_suffix}.md"
+    export_filename = f"{timestamp}_{short_id}_{project_slug}_{args.trigger}{label_suffix}.md"
     export_path = export_dir / export_filename
 
     # ── Convert and write ──────────────────────────────────────────────────────
-    markdown = parse_jsonl_to_markdown(transcript_path, session_id, args.trigger)
+    markdown = parse_jsonl_to_markdown(
+        transcript_path, session_id, args.trigger,
+        project_name=cwd.name,
+        project_path=str(cwd)
+    )
     export_path.write_text(markdown, encoding="utf-8")
 
     # ── GPG encryption for confidential sessions ───────────────────────────────
+    def safe_print(msg: str) -> None:
+        """Print with emoji fallback for Windows consoles that don't support UTF-8."""
+        try:
+            print(msg)
+        except UnicodeEncodeError:
+            print(msg.encode("ascii", errors="replace").decode("ascii"))
+
     if is_confidential:
         success = encrypt_with_gpg(export_path)
         if success:
-            print(f"🔒 Encrypted → sessions/confidential/{export_filename}.gpg")
+            safe_print(f"🔒 Encrypted → sessions/confidential/{export_filename}.gpg")
         else:
-            print(f"📄 Saved (unencrypted) → sessions/confidential/{export_filename}")
+            safe_print(f"Saved (unencrypted) → sessions/confidential/{export_filename}")
     else:
-        print(f"✅ Session exported → sessions/exports/{export_filename}")
+        safe_print(f"✅ Session exported → sessions/exports/{export_filename}")
 
     sys.exit(0)
 
