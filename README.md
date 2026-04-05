@@ -94,6 +94,10 @@ That's it. Your first ingest:
 > ingest research raw/research/my-first-article.md
 ```
 
+> 📋 **New to this?** Start with the **[Quick Reference Card](QUICK-REFERENCE.md)** —
+> a one-page cheat sheet covering every daily workflow command.
+> Print it and keep it handy until the workflow is muscle memory.
+
 ---
 
 ## Going further
@@ -102,6 +106,7 @@ Once your wiki is running, these guides cover the next level:
 
 | Guide | What it covers |
 |---|---|
+| [Quick Reference Card](QUICK-REFERENCE.md) | Daily workflow cheat sheet — print this |
 | [Cross-project wiring](docs/cross-project-wiring.md) | Connect all your project repos to the central wiki — one search finds sessions from everywhere |
 | [Obsidian setup](docs/obsidian-setup.md) | Full Obsidian configuration, Web Clipper, graph view tips, mobile setup, Dataview queries |
 | [New project checklist](examples/use-cases/new-project-checklist.md) | 5-minute setup for every new project repo going forward |
