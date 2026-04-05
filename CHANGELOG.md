@@ -7,6 +7,28 @@ Each release notes what was added, changed, fixed, or removed.
 
 ---
 
+## [1.1.0] — 2026-04-04
+
+### Added
+
+**Cross-project wiring**
+- `scripts/wire-project.py` — wire any project repo to the central wiki
+  with one command. Installs hooks and appends wiki integration section
+  to CLAUDE.md. Auto-detects wiki root via WIKI_ROOT env var.
+- `scripts/wire-all-projects.py` — wire all existing repos at once.
+  Scans a directory, skips already-wired repos, shows list before
+  making changes. Supports --dry-run and --skip flags.
+
+**Documentation**
+- `docs/cross-project-wiring.md` — complete guide to connecting all
+  project repos to the central session index
+- `docs/obsidian-setup.md` — full Obsidian configuration reference
+  including Web Clipper, graph view, mobile setup, Dataview queries
+- `examples/use-cases/new-project-checklist.md` — 5-minute checklist
+  for wiring every new project from day one
+
+---
+
 ## [1.0.0] — 2026-04-04
 
 Initial public release.

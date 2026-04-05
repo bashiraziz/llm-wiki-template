@@ -63,6 +63,14 @@ for their specific use case. Good domain examples to add:
 - **Export format support** for non-JSONL transcript formats (Cursor, Aider, etc.)
 - **`recall.sh` improvements**: date range search, domain-filtered search
 
+### Cross-platform improvements
+
+- **Windows paths in wire-project.py** — the script handles Windows paths
+  but more testing needed. PRs with Windows-specific fixes welcome.
+- **wire-all-projects.py for monorepos** — current version scans a flat
+  directory of repos. Support for nested repo structures.
+- **Shell completion** — bash/zsh completion for wire-project.py arguments.
+
 ---
 
 ## How to contribute

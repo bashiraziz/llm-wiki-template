@@ -92,6 +92,18 @@ That's it. Your first ingest:
 
 ---
 
+## Going further
+
+Once your wiki is running, these guides cover the next level:
+
+| Guide | What it covers |
+|---|---|
+| [Cross-project wiring](docs/cross-project-wiring.md) | Connect all your project repos to the central wiki — one search finds sessions from everywhere |
+| [Obsidian setup](docs/obsidian-setup.md) | Full Obsidian configuration, Web Clipper, graph view tips, mobile setup, Dataview queries |
+| [New project checklist](examples/use-cases/new-project-checklist.md) | 5-minute setup for every new project repo going forward |
+
+---
+
 ## Repository structure
 
 ```
@@ -105,7 +117,9 @@ llm-wiki-template/
 │   ├── setup.sh                     ← one-time setup script
 │   ├── export-session.py            ← session → markdown export
 │   ├── index-sessions.sh            ← markdown → SQLite FTS5 indexer
-│   └── recall.sh                    ← search past sessions
+│   ├── recall.sh                    ← search past sessions
+│   ├── wire-project.py              ← wire any project to the wiki
+│   └── wire-all-projects.py         ← wire all existing projects
 │
 ├── adapters/                        ← tool-specific configuration
 │   ├── claude-code/                 ← Claude Code adapter (reference implementation)
