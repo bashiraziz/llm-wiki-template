@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(chmod +x scripts/wire-project.py scripts/wire-all-projects.py)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Read(//c/Users/user/Documents/github/my-wiki/.claude/scripts//**)",
+      "Read(//c/Users/user/Documents/github/my-wiki/scripts//**)"
     ]
   }
 }
