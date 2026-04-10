@@ -117,13 +117,22 @@ Indexes any unindexed exports, prints last 3 sessions so you know where you left
 ### Manual recovery — when a session wasn't captured
 
 The JSONL transcript stays on disk in `~/.claude/projects/` indefinitely.
-If a session was auto-compacted or the window was closed before hooks ran:
 
+**Easy path — sweep for everything recent:**
+```bash
+# Export all unexported sessions from the last 7 days, across all projects
+python3 .claude/scripts/sweep-sessions.py --days 7
+
+# Or check what would be exported first:
+python3 .claude/scripts/sweep-sessions.py --days 7 --dry-run
+```
+
+**Single session recovery:**
 ```bash
 # 1. Find the session JSONL
 ls ~/.claude/projects/   # look for your project slug directory
 
-# 2. Export it manually
+# 2. Export it
 python3 .claude/scripts/export-session.py \
   --trigger manual \
   --transcript ~/.claude/projects/<project-slug>/<session-id>.jsonl
@@ -138,17 +147,30 @@ what failed — useful for diagnosing why a session went missing.
 ### Windows note — wikiexit alias
 
 On Windows, the SessionEnd hook may not fire reliably when you type
-`exit` to close Claude Code. Add this function to your PowerShell
+`exit` to close Claude Code. Add these functions to your PowerShell
 profile as a reliable alternative:
 
 ```powershell
 # Run once in PowerShell to open your profile:
 notepad $PROFILE
 
-# Add this function to the file, save, and close:
+# Add these functions to the file, save, and close:
 function wikiexit {
+    # Export the current session
     python "YOUR_WIKI_PATH\.claude\scripts\export-session.py" `
            --trigger manual `
+           --wiki-dir "YOUR_WIKI_PATH"
+    # Sweep the last 7 days for any sessions missed by hooks
+    # (catches auto-compacted sessions and unclean exits)
+    python "YOUR_WIKI_PATH\.claude\scripts\sweep-sessions.py" `
+           --days 7 `
+           --wiki-dir "YOUR_WIKI_PATH"
+}
+
+function wikisweep {
+    # Full historical sweep — export ALL unexported sessions ever
+    # Run this once when setting up a new machine or after a long gap
+    python "YOUR_WIKI_PATH\.claude\scripts\sweep-sessions.py" `
            --wiki-dir "YOUR_WIKI_PATH"
 }
 
@@ -161,11 +183,26 @@ Replace `YOUR_WIKI_PATH` with your actual wiki path.
 After setup, your session closing ritual is:
 ```
 exit        ← close Claude Code
-wikiexit    ← export the session to your wiki
+wikiexit    ← export current session + sweep last 7 days
 ```
 
-`wikiexit` works from any project directory. It detects the current
-project and exports the latest session transcript automatically.
+`wikiexit` works from any project directory. The sweep catches sessions
+from all wired projects — not just the one you were working in.
+
+For Mac/Linux, add the equivalent shell functions to `~/.zshrc` or `~/.bashrc`:
+
+```bash
+export WIKI_ROOT="$HOME/path/to/your-wiki"
+
+wikiexit() {
+    python3 "$WIKI_ROOT/.claude/scripts/export-session.py" --trigger manual
+    python3 "$WIKI_ROOT/.claude/scripts/sweep-sessions.py" --days 7
+}
+
+wikisweep() {
+    python3 "$WIKI_ROOT/.claude/scripts/sweep-sessions.py"
+}
+```
 
 ---
 

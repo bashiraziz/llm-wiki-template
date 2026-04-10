@@ -7,6 +7,26 @@ Each release notes what was added, changed, fixed, or removed.
 
 ---
 
+## [1.1.3] — 2026-04-10
+
+### Added
+
+- `scripts/sweep-sessions.py` — scans `~/.claude/projects/` for JSONL files
+  not yet exported and exports them. The safety net for sessions missed by
+  PreCompact and SessionEnd hooks (auto-compaction, unclean exits).
+  Flags: `--dry-run`, `--days N` (default 0 = all time), `--wiki-dir`.
+- `adapters/claude-code/CLAUDE.md` — `wikiexit` now calls sweep with `--days 7`
+  after the current-session export. Catches anything missed in the last week
+  with zero extra commands.
+- `adapters/claude-code/CLAUDE.md` — Added `wikisweep` alias: full historical
+  sweep for first-time setup or after a long gap.
+- `adapters/claude-code/CLAUDE.md` — Mac/Linux shell function equivalents for
+  `wikiexit` and `wikisweep`.
+- `adapters/claude-code/CLAUDE.md` — `sweep-sessions.py --dry-run` is now the
+  recommended first step in the manual recovery procedure.
+
+---
+
 ## [1.1.2] — 2026-04-10
 
 ### Fixed
