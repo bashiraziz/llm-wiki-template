@@ -104,14 +104,36 @@ calls, no embeddings, no vector database. Just markdown and SQL.
 
 ### Three hooks
 
-**PreCompact** — fires before context compression (manual /compact or automatic).
-Captures the full session before anything is summarized away. The critical hook.
+**PreCompact** — fires before context compression triggered by manual `/compact`.
+**Does not fire for automatic context compression** (when the context limit is hit
+mid-session). For auto-compacted sessions, SessionEnd is the only automatic safety net.
 
 **SessionEnd** — fires when the session exits normally.
 Catches short sessions that never triggered PreCompact.
 
 **SessionStart** — fires when a new session begins.
 Indexes any unindexed exports, prints last 3 sessions so you know where you left off.
+
+### Manual recovery — when a session wasn't captured
+
+The JSONL transcript stays on disk in `~/.claude/projects/` indefinitely.
+If a session was auto-compacted or the window was closed before hooks ran:
+
+```bash
+# 1. Find the session JSONL
+ls ~/.claude/projects/   # look for your project slug directory
+
+# 2. Export it manually
+python3 .claude/scripts/export-session.py \
+  --trigger manual \
+  --transcript ~/.claude/projects/<project-slug>/<session-id>.jsonl
+
+# 3. Index it
+bash .claude/scripts/index-sessions.sh
+```
+
+Check `.claude/hooks.log` for a timestamped record of when hooks ran and
+what failed — useful for diagnosing why a session went missing.
 
 ### Windows note — wikiexit alias
 

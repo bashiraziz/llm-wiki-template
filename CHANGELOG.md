@@ -7,6 +7,27 @@ Each release notes what was added, changed, fixed, or removed.
 
 ---
 
+## [1.1.2] — 2026-04-10
+
+### Fixed
+
+- `export-session.py` — Hook failures were silent. Added `.claude/hooks.log`:
+  every hook invocation (trigger, session ID, transcript path, wiki dir) is
+  timestamped and appended. Parse errors and missing-transcript errors are
+  logged with detail. Success is logged with the output filename.
+  Check this file whenever exports go missing.
+- `export-session.py` — stdin read changed from `json.load()` to `read()` +
+  `json.loads()` so parse failures can log the raw input for diagnosis.
+- `adapters/claude-code/CLAUDE.md` — Corrected PreCompact description:
+  the hook fires for manual `/compact` only, **not** for automatic context
+  compression. Previous docs said "manual /compact or automatic" — that was wrong.
+  SessionEnd is the only automatic safety net for auto-compacted sessions.
+- `adapters/claude-code/CLAUDE.md` — Added manual recovery procedure:
+  how to export a missed session from the JSONL on disk and re-index it.
+- `.gitignore` — Added `.claude/hooks.log` (local debug log, not for commits).
+
+---
+
 ## [1.1.1] — 2026-04-05
 
 ### Fixed

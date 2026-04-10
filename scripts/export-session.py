@@ -38,6 +38,22 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 
+# ── Hook debug log ────────────────────────────────────────────────────────────
+# Written to <wiki>/.claude/hooks.log — check this file if exports stop working.
+# Gitignored. Never written during sentinel/confidential sessions.
+
+def _log_hook_event(wiki_dir: "Path | None", trigger: str, message: str) -> None:
+    """Append a timestamped line to <wiki>/.claude/hooks.log."""
+    if wiki_dir is None:
+        return
+    try:
+        log_path = wiki_dir / ".claude" / "hooks.log"
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [{trigger}] {message}\n")
+    except Exception:
+        pass  # never crash on logging
+
+
 # ── Wiki root resolution ───────────────────────────────────────────────────────
 # Exports always land in the central wiki, not in whichever project cwd triggered
 # the hook. Priority: --wiki-dir flag → WIKI_ROOT env var → hardcoded path → cwd.
@@ -242,11 +258,16 @@ def main():
 
     # ── Read hook payload from stdin (Claude Code hook mode) ──────────────────
     hook_data = {}
+    raw_stdin = ""
     if not sys.stdin.isatty():
         try:
-            hook_data = json.load(sys.stdin)
-        except Exception:
-            pass
+            raw_stdin = sys.stdin.read()
+            hook_data = json.loads(raw_stdin)
+        except Exception as e:
+            # Log parse failures — common on Windows when path backslashes aren't
+            # properly escaped in the JSON payload. Logged after wiki_dir resolves.
+            _log_hook_event(None, args.trigger,
+                f"stdin JSON parse failed: {e!r} | raw (first 200): {raw_stdin[:200]}")
 
     session_id = hook_data.get("session_id", "unknown")
     transcript_path_str = args.transcript or hook_data.get("transcript_path", "")
@@ -254,6 +275,11 @@ def main():
     # wiki_dir is where sessions are written — always resolves to the central wiki,
     # never the project cwd that triggered the hook.
     wiki_dir = resolve_wiki_root(cwd, args.wiki_dir)
+
+    # Log every hook invocation so failures are diagnosable
+    _log_hook_event(wiki_dir, args.trigger,
+        f"session_id={session_id!r} cwd={cwd} transcript={transcript_path_str!r} wiki_dir={wiki_dir}"
+    )
 
     # ── Control 1: Sentinel file check ────────────────────────────────────────
     # Check both the project cwd (where the user may have placed the sentinel)
@@ -277,7 +303,9 @@ def main():
 
     transcript_path = Path(transcript_path_str)
     if not transcript_path.exists():
-        print(f"⚠️  Transcript not found: {transcript_path}", file=sys.stderr)
+        msg = f"Transcript not found: {transcript_path}"
+        print(f"⚠️  {msg}", file=sys.stderr)
+        _log_hook_event(wiki_dir, args.trigger, f"ERROR: {msg}")
         sys.exit(0)
 
     short_id = session_id[:8] if session_id != "unknown" else "manual"
@@ -329,10 +357,13 @@ def main():
         success = encrypt_with_gpg(export_path)
         if success:
             safe_print(f"🔒 Encrypted → sessions/confidential/{export_filename}.gpg")
+            _log_hook_event(wiki_dir, args.trigger, f"OK (confidential/encrypted): {export_filename}.gpg")
         else:
             safe_print(f"Saved (unencrypted) → sessions/confidential/{export_filename}")
+            _log_hook_event(wiki_dir, args.trigger, f"OK (confidential/plaintext): {export_filename}")
     else:
         safe_print(f"✅ Session exported → sessions/exports/{export_filename}")
+        _log_hook_event(wiki_dir, args.trigger, f"OK: {export_filename}")
 
     sys.exit(0)
 
