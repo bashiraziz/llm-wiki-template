@@ -106,15 +106,18 @@ Windows uses backslashes in paths. The scripts handle both:
 - `C:\Users\you\my-wiki` — Windows style (works)
 - `C:/Users/you/my-wiki` — Forward slash (also works in Python)
 
-In `settings.json`, use escaped backslashes:
-```json
-"C:\\Users\\you\\my-wiki\\.claude\\scripts\\export-session.py"
-```
-
-Or forward slashes (simpler, also works):
+In `settings.json`, **always use forward slashes** in hook command paths:
 ```json
 "C:/Users/you/my-wiki/.claude/scripts/export-session.py"
 ```
+
+> **Do not use backslashes in hook commands.** Claude Code runs hooks through bash on
+> Windows. Bash treats `\U`, `\D`, etc. as escape sequences, silently stripping the
+> backslashes and mangling the path. This causes `/compact` to fail with
+> `"No such file or directory"`. Forward slashes work correctly in both bash and Python.
+
+`wire-project.py` generates forward-slash paths automatically — this only matters if
+you edit `settings.json` by hand.
 
 ---
 

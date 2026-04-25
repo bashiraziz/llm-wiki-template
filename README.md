@@ -251,6 +251,7 @@ touch .claude/no-export
 | Issue | Affects | Workaround |
 |---|---|---|
 | SessionEnd hook doesn't fire on exit | Windows | Use `wikiexit` PowerShell alias — see [Setup Guide Part 5](SETUP-GUIDE.md#part-5--closing-sessions-correctly) |
+| `/compact` blocked: `No such file or directory` | Windows | Use forward slashes in `settings.json` hook paths (`C:/Users/...`), never backslashes — bash mangles them. `wire-project.py` does this automatically. |
 | Emoji display as `?` in terminal output | Windows cp1252 | Cosmetic only — exports still work correctly |
 | sqlite3 not found in Git Bash | Windows | Copy sqlite3.exe to `C:\Program Files\Git\usr\bin\` as admin |
 
