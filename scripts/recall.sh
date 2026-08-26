@@ -137,7 +137,8 @@ echo ""
 
 # SQLite FTS5 search with BM25 ranking and snippet extraction
 RESULTS=$(sqlite3 "$DB" \
-  "SELECT
+  "PRAGMA trusted_schema=ON;
+   SELECT
      s.export_date,
      s.filename,
      snippet(sessions_fts, 4, '>>> ', ' <<<', '...', 30) as excerpt
@@ -148,7 +149,8 @@ RESULTS=$(sqlite3 "$DB" \
    LIMIT 8;" 2>/dev/null)
 
 FTS_COUNT=$(sqlite3 "$DB" \
-  "SELECT COUNT(*) FROM sessions_fts WHERE sessions_fts MATCH '$QUERY';" 2>/dev/null || echo "0")
+  "PRAGMA trusted_schema=ON;
+   SELECT COUNT(*) FROM sessions_fts WHERE sessions_fts MATCH '$QUERY';" 2>/dev/null || echo "0")
 
 if [ -n "$RESULTS" ] && [ "$FTS_COUNT" -gt "0" ]; then
   echo "$RESULTS" | while IFS='|' read -r date fname excerpt; do
