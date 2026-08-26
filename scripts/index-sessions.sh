@@ -104,9 +104,11 @@ for f in "$EXPORT_DIR"/*.md; do
   EXPORT_DATE=$(echo "$BASENAME" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' || echo "unknown")
   TRIGGER=$(echo "$BASENAME" | grep -oE '(precompact|sessionend|manual)' | head -1 || echo "unknown")
 
-  # JSON-escape the content for safe insertion
+  # SQL-escape the content for safe insertion. NOT json.dumps: SQLite escapes a
+  # quote by doubling it and gives backslash no special meaning, so a JSON string
+  # literal fails to parse on any content containing a double quote.
   CONTENT=$(cat "$f")
-  ESCAPED=$(python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))' <<< "$CONTENT" 2>/dev/null)
+  ESCAPED=$(python3 -c 'import sys; q=chr(39); print(q + sys.stdin.read().replace(q, q*2) + q)' <<< "$CONTENT" 2>/dev/null)
 
   if [ -z "$ESCAPED" ]; then
     echo "⚠️  Failed to process: $BASENAME" >&2
@@ -114,7 +116,10 @@ for f in "$EXPORT_DIR"/*.md; do
     continue
   fi
 
+  # trusted_schema=ON is required: macOS ships sqlite3 with it off, which forbids the
+  # AFTER INSERT trigger from writing to the sessions_fts virtual table.
   sqlite3 "$DB" "
+    PRAGMA trusted_schema=ON;
     INSERT OR IGNORE INTO sessions_raw (filename, session_id, export_date, trigger, content)
     VALUES ('$BASENAME', '$SESSION_ID', '$EXPORT_DATE', '$TRIGGER', $ESCAPED);
   " 2>/dev/null && INDEXED=$((INDEXED + 1)) || ERRORS=$((ERRORS + 1))
